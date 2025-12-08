@@ -51,8 +51,8 @@
     viewer.axes.setAxes();
     viewer.grid.setGrid();
 
-    const ruta = nombreArchivo; // mismo directorio que el HTML
-
+    
+    const ruta = `https://juanlubaz.github.io/visor-ifc/${nombreArchivo}`
     try {
       await viewer.IFC.loadIfcUrl(ruta);
     } catch (e) {
@@ -63,3 +63,4 @@
 
 </body>
 </html>
+
