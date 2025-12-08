@@ -4,7 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Visor IFC</title>
+
+  <!-- IFC.js + Three.js -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/ifcjs@7.0.11/dist/ifc.min.js"></script>
+
   <style>
     html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
     #viewer-container { width: 100%; height: 100%; }
@@ -27,19 +31,23 @@
 <div id="viewer-container"></div>
 
 <script>
-  // --- Obtener parámetro 'modelo' ---
+  //----------------------------------------------------
+  // 1. Obtener parámetro ?modelo=
+  //----------------------------------------------------
   const url = new URL(window.location.href);
   const modelo = url.searchParams.get("modelo");
-
   const fileNameDiv = document.getElementById("file-name");
 
   if (!modelo) {
-    fileNameDiv.textContent = "Archivo: (no se recibió parámetro 'modelo')";
+    fileNameDiv.textContent = "Archivo: (no se recibió parámetro)";
   } else {
     fileNameDiv.textContent = "Archivo: " + modelo;
     cargarIFC(modelo);
   }
 
+  //----------------------------------------------------
+  // 2. Cargar modelo con configuración completa (workers)
+  //----------------------------------------------------
   async function cargarIFC(nombreArchivo) {
     const container = document.getElementById("viewer-container");
 
@@ -51,8 +59,12 @@
     viewer.axes.setAxes();
     viewer.grid.setGrid();
 
-    
-    const ruta = `https://juanlubaz.github.io/visor-ifc/${nombreArchivo}`
+    // Ruta absoluta obligatoria en GitHub Pages
+    const ruta = `https://juanlubaz.github.io/visor-ifc/${nombreArchivo}`;
+
+    // Configurar WebIFC (imprescindible para que cargue)
+    await viewer.IFC.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.46/");
+
     try {
       await viewer.IFC.loadIfcUrl(ruta);
     } catch (e) {
@@ -64,5 +76,4 @@
 
 </body>
 </html>
-
 
