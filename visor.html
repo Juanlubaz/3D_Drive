@@ -1,79 +1,129 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Visor IFC</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Visor GLB</title>
 
-  <!-- IFC.js + Three.js -->
-  <script src="https://cdn.jsdelivr.net/npm/three@0.150.1/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/ifcjs@7.0.11/dist/ifc.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+            font-family: sans-serif;
+        }
+        #viewer {
+            width: 100%;
+            height: 100%;
+            background: #ffffff;
+        }
+        #filename {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: #ffffffcc;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            z-index: 10;
+        }
+    </style>
 
-  <style>
-    html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-    #viewer-container { width: 100%; height: 100%; }
-    #file-name {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      background: rgba(0,0,0,0.6);
-      color: white;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-family: sans-serif;
-      z-index: 10;
-    }
-  </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152/examples/js/controls/OrbitControls.js"></script>
 </head>
 <body>
 
-<div id="file-name">Archivo: (cargando…)</div>
-<div id="viewer-container"></div>
+<div id="filename">Cargando...</div>
+<div id="viewer"></div>
 
 <script>
-  //----------------------------------------------------
-  // 1. Obtener parámetro ?modelo=
-  //----------------------------------------------------
-  const url = new URL(window.location.href);
-  const modelo = url.searchParams.get("modelo");
-  const fileNameDiv = document.getElementById("file-name");
-
-  if (!modelo) {
-    fileNameDiv.textContent = "Archivo: (no se recibió parámetro)";
-  } else {
-    fileNameDiv.textContent = "Archivo: " + modelo;
-    cargarIFC(modelo);
-  }
-
-  //----------------------------------------------------
-  // 2. Cargar modelo con configuración completa (workers)
-  //----------------------------------------------------
-  async function cargarIFC(nombreArchivo) {
-    const container = document.getElementById("viewer-container");
-
-    const viewer = new IfcViewerAPI({
-      container,
-      backgroundColor: new THREE.Color(0xffffff),
-    });
-
-    viewer.axes.setAxes();
-    viewer.grid.setGrid();
-
-    // Ruta absoluta obligatoria en GitHub Pages
-    const ruta = `https://juanlubaz.github.io/visor-ifc/${nombreArchivo}`;
-
-    // Configurar WebIFC (imprescindible para que cargue)
-    await viewer.IFC.setWasmPath("https://cdn.jsdelivr.net/npm/web-ifc@0.0.46/");
-
-    try {
-      await viewer.IFC.loadIfcUrl(ruta);
-    } catch (e) {
-      fileNameDiv.textContent = "Error al cargar: " + e;
-      console.error(e);
+    function getModelName() {
+        const params = new URLSearchParams(window.location.search);
+        return params.get("modelo");
     }
-  }
+
+    const fileName = getModelName();
+    const label = document.getElementById("filename");
+
+    if (!fileName) {
+        label.textContent = "Error: falta parámetro ?modelo=";
+    } else {
+        label.textContent = fileName;
+    }
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+        50,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+    );
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    document.getElementById("viewer").appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    camera.position.set(4, 4, 4);
+    controls.update();
+
+    const light1 = new THREE.DirectionalLight(0xffffff, 1);
+    light1.position.set(5, 5, 5);
+    scene.add(light1);
+
+    const light2 = new THREE.AmbientLight(0xffffff, 0.5);
+    scene.add(light2);
+
+    if (fileName) {
+        const loader = new THREE.GLTFLoader();
+        const url = fileName;
+
+        loader.load(
+            url,
+            function (gltf) {
+                scene.add(gltf.scene);
+
+                // centrado automático
+                const box = new THREE.Box3().setFromObject(gltf.scene);
+                const size = box.getSize(new THREE.Vector3()).length();
+                const center = box.getCenter(new THREE.Vector3());
+
+                gltf.scene.position.x += (gltf.scene.position.x - center.x);
+                gltf.scene.position.y += (gltf.scene.position.y - center.y);
+                gltf.scene.position.z += (gltf.scene.position.z - center.z);
+
+                camera.position.set(size, size, size);
+                controls.update();
+            },
+            function (xhr) {
+                label.textContent = fileName + " (" + ((xhr.loaded / xhr.total) * 100).toFixed(0) + "%)";
+            },
+            function (error) {
+                label.textContent = "Error al cargar GLB";
+                console.error(error);
+            }
+        );
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener("resize", () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
 </script>
 
 </body>
 </html>
-
